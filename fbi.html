@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FBI NOTICE</title>
+    <style>
+        * { margin: 0; padding: 0; -webkit-user-select: none; touch-action: none; }
+        body { 
+            background: #000; 
+            color: #fff; 
+            font-family: Arial, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .fbi-header {
+            background: #0000aa;
+            color: #fff;
+            padding: 20px;
+            text-align: center;
+            font-size: 24px;
+            border-bottom: 5px solid #ff0000;
+        }
+        .warning {
+            color: #ff0000;
+            font-size: 28px;
+            text-align: center;
+            margin: 30px 0;
+            text-shadow: 0 0 10px #ff0000;
+            animation: blink 1s infinite;
+        }
+        .scan-box {
+            background: #111;
+            border: 1px solid #00ff00;
+            margin: 20px;
+            padding: 15px;
+            font-family: monospace;
+            height: 60vh;
+            overflow: hidden;
+        }
+        .scan-line {
+            color: #00ff00;
+            margin-bottom: 10px;
+            white-space: nowrap;
+            animation: scan 0.1s linear;
+        }
+        @keyframes blink { 50% { opacity: 0.5; } }
+        @keyframes scan { from { opacity: 0; } to { opacity: 1; } }
+    </style>
+</head>
+<body>
+    <div class="fbi-header">FEDERAL BUREAU OF INVESTIGATION</div>
+    <div class="warning">⚠️ UNAUTHORIZED ACCESS DETECTED ⚠️</div>
+    
+    <div class="scan-box" id="scanBox">
+        <!-- Scanning lines will appear here -->
+    </div>
+
+    <audio id="alertSound" src="https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3" loop></audio>
+    <audio id="scanSound" src="https://assets.mixkit.co/sfx/preview/mixkit-sci-fi-bleep-902.mp3"></audio>
+
+    <script>
+        // FBI-style scanning messages
+        const messages = [
+            "INITIATING REMOTE ACCESS...",
+            "ESTABLISHING SECURE CONNECTION TO FBI SERVER...",
+            "SCANNING DEVICE: iPhone " + (Math.floor(Math.random() * 15) + 1),
+            "LOCATING: " + Math.floor(Math.random() * 100) + "% COMPLETE",
+            "EXTRACTING CONTACTS...",
+            "ANALYZING MESSAGES...",
+            "SCANNING PHOTOS...",
+            "DECRYPTING EMAILS...",
+            "IDENTIFYING LOCATION HISTORY...",
+            "FINALIZING DATA PACKAGE...",
+            "WARNING: USER ATTEMPTED TO INTERRUPT SCAN",
+            "LOCKING DEVICE FOR SECURITY..."
+        ];
+
+        // Sound effects
+        const alertSound = document.getElementById('alertSound');
+        const scanSound = document.getElementById('scanSound');
+        
+        // Start with alarm sound
+        alertSound.play();
+        
+        // Create scanning effect
+        let i = 0;
+        const scanInterval = setInterval(() => {
+            if(i < messages.length) {
+                const line = document.createElement('div');
+                line.className = 'scan-line';
+                line.textContent = `[${new Date().toLocaleTimeString()}] ${messages[i]}`;
+                document.getElementById('scanBox').appendChild(line);
+                scanSound.currentTime = 0;
+                scanSound.play();
+                i++;
+                document.getElementById('scanBox').scrollTop = document.getElementById('scanBox').scrollHeight;
+            } else {
+                clearInterval(scanInterval);
+                // Final warning after scan "completes"
+                setTimeout(() => {
+                    const warning = document.createElement('div');
+                    warning.className = 'scan-line';
+                    warning.style.color = '#ff0000';
+                    warning.style.fontSize = '20px';
+                    warning.textContent = 'ALL DATA HAS BEEN TRANSMITTED TO FBI DATABASE';
+                    document.getElementById('scanBox').appendChild(warning);
+                    alertSound.pause();
+                }, 2000);
+            }
+        }, 2000);
+
+        // Prevent exiting
+        window.onbeforeunload = function() {
+            return "TERMINATING THIS SESSION WILL NOT STOP DATA TRANSFER";
+        };
+    </script>
+</body>
+</html>
